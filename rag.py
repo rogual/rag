@@ -20,23 +20,28 @@ for result in results:
 
     filename = result.decode('utf-8')
 
-    subprocess.check_call(
-        '''sed 's/%s/%s/g' < %s > %s''' % (query, replacement, filename, sed_result.name),
+    r = subprocess.call(
+        '''sed 's/%s/%s/g' < "%s" > "%s"''' % (query, replacement, filename, sed_result.name),
         shell=True
     )
+
+    if r != 0:
+        print('Sed failed on %s' % filename)
+        continue
 
     print('\nMatches in %s:\n\n' % filename)
 
     subprocess.call(
-        '''colordiff -y %s %s''' % (filename, sed_result.name),
+        '''git --no-pager diff --word-diff "%s" "%s"''' % (filename, sed_result.name),
         shell=True
     )
 
-    cmd = input("OK? ")
+    cmd = input("Write changes to %s ? [y/n] " % filename)
 
     if cmd == 'y':
         subprocess.check_call(
-            '''mv %s %s''' % (sed_ersult.name, filename)
+            '''mv %s %s''' % (sed_result.name, filename),
+            shell=True
         )
-
-    os.unlink(sed_result.name)
+    else:
+        os.unlink(sed_result.name)
