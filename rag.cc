@@ -27,6 +27,19 @@ struct Run {
     bool color;
 };
 
+typedef io::stream<io::file_descriptor_source> PopenStream;
+
+bool popen_stream(PopenStream &results_stream, const char *command)
+{
+    FILE *file = popen(command, "r");
+    if (file) {
+        io::file_descriptor_source results(fileno(file), io::close_handle);
+        results_stream.open(results);
+        return true;
+    }
+    return false;
+}
+
 void transform_line(string &line, const string &find, const string &replace)
 {
     int n = find.length();
@@ -180,22 +193,18 @@ int main(int argc, char **argv)
 
     string dir = vars["dir"].as<string>();
 
-    FILE *search;
+    PopenStream results_stream;
     const vector<string> try_progs = {"ag", "ack", "grep"};
     for (const string &prog: try_progs) {
         string search_cmd = "ag " + run.find + " " + dir;
-        search = popen(search_cmd.c_str(), "r");
-        if (search)
+        if (popen_stream(results_stream, search_cmd.c_str()))
             break;
     }
 
-    if (!search) {
+    if (!results_stream.good()) {
         cout << "No suitable search program could be run.\n";
         return 1;
     }
-
-    io::file_descriptor_source results(fileno(search), io::close_handle);
-    io::stream<io::file_descriptor_source> results_stream(results);
 
     string filename;
     vector<string> chunk;
